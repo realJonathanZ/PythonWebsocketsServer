@@ -1,6 +1,6 @@
 import asyncio
 import websockets
-
+import json
 
 # Client B demo:
 # 1) connect to the server
@@ -17,7 +17,13 @@ async def run():
 
         # keep waiting for messages until the connection closes
         async for message in ws:
-            print("Client B received:", message)
+            # convert str-parsed json back to dict
+            data = json.loads(message)
+
+            # inspect inner elements
+            print("type:", data["type"])
+            print("sender:", data["data"]["sender"])
+            print("message:", data["data"]["message"])
 
 
 # entry point: start Client B's async workflow

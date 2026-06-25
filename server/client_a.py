@@ -1,4 +1,5 @@
 import asyncio
+import json
 import websockets
 
 
@@ -12,8 +13,19 @@ async def run():
 
         print("Client A connected")
 
-        # one initial message 
-        await ws.send("Hello from A")
+        # one initial dictionary carrying data
+
+        packet = {
+            "type": "chat",
+            "data": {
+                "sender": "A",
+                "message": "Hello"
+            }
+        }
+
+        json_str = json.dumps(packet)  # message dict to str
+        
+        await ws.send(json_str) # send parsed message to the server
 
         # keep waiting for messages until the connection closes
         async for message in ws:

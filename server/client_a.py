@@ -1,7 +1,9 @@
 import asyncio
 import json
 import websockets
+from websockets import ClientConnection
 
+from protocal import ChatPacket
 
 # Client A demo:
 # 1) connect to the server
@@ -9,7 +11,7 @@ import websockets
 # 3) keep listening for incoming messages from other clients
 
 
-async def send_loop(ws, name):
+async def send_loop(ws: ClientConnection, name: str) -> None:
     """
     read user input and send chat packets to the server forever.
     """
@@ -17,7 +19,7 @@ async def send_loop(ws, name):
         # dirrectly using input() in an async function will block the event loop, so use asyncio.to_thread to run it in a separate thread.
         message = await asyncio.to_thread(input, "enter awesome message to all other clients: ")
 
-        packet = {
+        packet: ChatPacket = {
             "type": "chat",
             "data": {
                 "sender": name,
@@ -28,14 +30,14 @@ async def send_loop(ws, name):
         await ws.send(json.dumps(packet))  # send parsed message to the server
 
 
-async def receive_loop(ws):
+async def receive_loop(ws: ClientConnection) -> None:
     """
     continuously listening for incoming broadcasted messages from
     main server and print them for this client.
     """
     # keep waiting for messages until the connection closes
     async for message in ws:
-        data = json.loads(message)
+        data: ChatPacket = json.loads(message)
 
         print("\n--- some message is received by client A ! ---")
         print("message type:", data["type"])
@@ -47,7 +49,7 @@ async def receive_loop(ws):
 
 
 
-async def run():
+async def run() -> None:
     """
     connect client A and run send/receive loops concurrently.
     """

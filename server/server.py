@@ -9,7 +9,7 @@ from protocal import ChatData, ChatPacket
 connected_clients: set[ServerConnection] = set() # storing all active clients
 
 
-async def broadcast(sender: ServerConnection, message: str):
+async def broadcast(sender: ServerConnection, message: str) -> None:
     """
     let the sender send one message and broadcast it out except to the sender itself.
     @param message: a str, parsed json format.
@@ -45,7 +45,7 @@ async def broadcast(sender: ServerConnection, message: str):
         connected_clients.discard(client) # discard(): more-safe remove()
 
 
-async def handler(websocket: ServerConnection):
+async def handler(websocket: ServerConnection) -> None:
     """
     for each client connection that's made to this server,
     this handler function will be called to handle the connection.
@@ -99,7 +99,7 @@ async def handler(websocket: ServerConnection):
 
 
 
-async def main():
+async def main() -> None:
     server = await websockets.serve(
         handler,        # what runs when server started? # the handler function to handle incoming connections
         host = "localhost",    # who can connect? now: only this pc # host that listens on

@@ -80,6 +80,7 @@ async def handler(websocket: ServerConnection):
 
             # Debugged point: make sure the message we are broadcasting
             # is the right form for what explained in the docstring of broadcast() function.
+            # await: for this client, broadcast one message at a time
             await broadcast(websocket, raw_message) # broadcast the message to all other clients
 
 

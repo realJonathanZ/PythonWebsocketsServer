@@ -3,6 +3,9 @@ import websockets
 import json
 from websockets.asyncio.server import ServerConnection
 
+# self-defined protocal.py
+from protocal import ChatData, ChatPacket
+
 connected_clients: set[ServerConnection] = set() # storing all active clients
 
 
@@ -32,7 +35,8 @@ async def broadcast(sender: ServerConnection, message: str):
             try:
                 await client.send(message)
 
-            except websockets.ConnectionClosed:
+            except Exception as e:
+                print(f"WARNING: message send failed: {e}")
                 # register this websocket connection as disconnected to the set.
                 disconnected_clients.add(client)
 
@@ -55,21 +59,28 @@ async def handler(websocket: ServerConnection):
     try:
         # this loop ends only when the WebSocket connection closes or an error happens. (for a particular ServerConncetion)
         async for message in websocket: # listen for messages from this client
+            raw_message = message
             # parse json and print its contents (Only for logging and debugging purpose)
             try:
-                packet = json.loads(message)  # Note: debugged point: check difference with .load() and .loads()
+                packet: dict = json.loads(raw_message)  # Note: debugged point: check difference with .load() and .loads()
 
-                print(
-                    f"received one message from one client, inspected as below:\n"
-                    f"type={packet.get('type', 'unknown')}\n"
-                    f"sender={packet.get('data', {}).get('sender', 'unknown')}"  # define quick getter mthod TODO
-                    f"message={packet.get('data', {}).get('message', 'unknown')}\n"
-                )
+                # where TypedDict is invovlved, as example..
+                if packet.get("type") == "chat":
+                    chat_packet: ChatPacket = packet  # from dict to TypedDict
+
+                    data: ChatData = chat_packet["data"]
+                    sender: str = data["sender"]
+                    chat_message: str = data["message"]
+
+                    print(f"[RECEIVED][CHAT][{sender}]{chat_message}")
+
 
             except json.JSONDecodeError:
-                print("main server received invalid json (or problem when loading):", message)
+                print("main server received invalid json (or problem when loading):", raw_message)
 
-            await broadcast(websocket, message) # broadcast the message to all other clients
+            # Debugged point: make sure the message we are broadcasting
+            # is the right form for what explained in the docstring of broadcast() function.
+            await broadcast(websocket, raw_message) # broadcast the message to all other clients
 
 
     except websockets.ConnectionClosed:

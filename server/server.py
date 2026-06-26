@@ -9,6 +9,18 @@ connected_clients: set[ServerConnection] = set() # storing all active clients
 async def broadcast(sender: ServerConnection, message: str):
     """
     let the sender send one message and broadcast it out except to the sender itself.
+    @param message: a str, parsed json format.
+    # example about a message:
+    Suppose original unparsed json to be:
+    {
+        "type": "chat",
+        "data": {
+            "sender": "A",
+            "message": "Hello I'm A."
+        }
+    }
+    argument message will be a string like this:
+    '{"type": "chat", "data": {"sender": "A", "message": "Hello I'm A."}}'
     """
 
     disconnected_clients: set[ServerConnection] = set() # store disconnected clients to remove them later

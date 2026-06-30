@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Set, Final
 
 import asyncio
 import websockets
@@ -8,43 +8,69 @@ from websockets.asyncio.server import ServerConnection
 # self-defined protocal.py
 from protocal import ChatData, ChatPacket
 
-connected_clients: Set[ServerConnection] = set() # storing all active clients
+# room contains 2 (or more?) clients of type ServerConnection, and can broadcast within the room
+from room import Room
 
 
-async def broadcast(sender: ServerConnection, message: str) -> None:
+# global states ===
+# =================
+rooms: dict[str, Room] = {} 
+DEFAULT_ROOM: Final[str] = "default_room" # const str of room id
+
+# room handler ===
+# =================
+
+
+def get_or_create_room(room_id: str) -> Room:
     """
-    let the sender send one message and broadcast it out except to the sender itself.
-    @param message: a str, parsed json format.
-    # example about a message:
-    Suppose original unparsed json to be:
-    {
-        "type": "chat",
-        "data": {
-            "sender": "A",
-            "message": "Hello I'm A."
-        }
-    }
-    argument message will be a string like this:
-    '{"type": "chat", "data": {"sender": "A", "message": "Hello I'm A."}}'
+    get or create one room with given room id and return one Room instance.
     """
+    if room_id not in rooms:
+        a_room: Room = Room(room_id)
+        rooms[room_id] = a_room
+        print(f"created new room with id: {room_id}")
+    else:
+        a_room: Room = rooms[room_id]
+        print(f"found existing room with id: {room_id}")
 
-    disconnected_clients: Set[ServerConnection] = set() # store disconnected clients to remove them later
+    return a_room
 
-    for client in list(connected_clients):
-        # sender do not send message to itself..
-        if client != sender:
-            # send the parsed json str message out
-            try:
-                await client.send(message)
+## NOTE: no longer allow clients broadcast/send packet via main server
+# async def broadcast(sender: ServerConnection, message: str) -> None:
+#     """
+#     let the sender send one message and broadcast it out except to the sender itself.
+#     @param message: a str, parsed json format.
+#     # example about a message:
+#     Suppose original unparsed json to be:
+#     {
+#         "type": "chat",
+#         "data": {
+#             "sender": "A",
+#             "message": "Hello I'm A."
+#         }
+#     }
+#     argument message will be a string like this:
+#     '{"type": "chat", "data": {"sender": "A", "message": "Hello I'm A."}}'
+#     """
 
-            except Exception as e:
-                print(f"WARNING: message send failed: {e}")
-                # register this websocket connection as disconnected to the set.
-                disconnected_clients.add(client)
+#     disconnected_clients: Set[ServerConnection] = set() # store disconnected clients to remove them later
 
-    # clean up dead connections..
-    for client in disconnected_clients:
-        connected_clients.discard(client) # discard(): more-safe remove()
+#     for client in list(connected_clients):
+#         # sender do not send message to itself..
+#         if client != sender:
+#             # send the parsed json str message out
+#             try:
+#                 await client.send(message)
+
+#             except Exception as e:
+#                 print(f"WARNING: message send failed: {e}")
+#                 # register this websocket connection as disconnected to the set.
+#                 disconnected_clients.add(client)
+
+#     # clean up dead connections..
+#     for client in disconnected_clients:
+#         connected_clients.discard(client) # discard(): more-safe remove()
+
 
 
 async def handler(websocket: ServerConnection) -> None:
@@ -55,9 +81,13 @@ async def handler(websocket: ServerConnection) -> None:
 
     # each client will get their own instance of this handler function.
     print("A client just connected")
-    connected_clients.add(websocket) # add the new client to the set
-    print(f"connected total clients count: {len(connected_clients)}")
-    
+
+    # assign to default room:
+    room: Room = get_or_create_room(DEFAULT_ROOM)
+    room.add_client(websocket)
+
+    print(f"this lobby contains clients count: -> {len(room.clients)}")
+
     try:
         # this loop ends only when the WebSocket connection closes or an error happens. (for a particular ServerConncetion)
         async for message in websocket: # listen for messages from this client
@@ -80,10 +110,8 @@ async def handler(websocket: ServerConnection) -> None:
             except json.JSONDecodeError:
                 print("main server received invalid json (or problem when loading):", raw_message)
 
-            # Debugged point: make sure the message we are broadcasting
-            # is the right form for what explained in the docstring of broadcast() function.
-            # await: for this client, broadcast one message at a time
-            await broadcast(websocket, raw_message) # broadcast the message to all other clients
+            # broadcast, but only within the room.
+            room.broadcast(raw_message, sender=websocket)
 
 
     except websockets.ConnectionClosed:
@@ -95,9 +123,14 @@ async def handler(websocket: ServerConnection) -> None:
 
     # when client disconnects...
     finally: # remove registered clent even if error occurs
-        connected_clients.discard(websocket) # discard(): more-safe remove() # removing it twice for safety..
-        print("A client just disconnected")
-        print(f"remaining connected total clients count: {len(connected_clients)}")
+        # which room? all rooms TODO need to trace in which rooms are clients disconnected?
+        for r in rooms.values():
+            r.remove_client(websocket)
+
+        print("A client disconnected from one or more rooms")
+
+        
+        
 
 
 

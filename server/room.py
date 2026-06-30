@@ -8,6 +8,8 @@ from websockets.asyncio.server import ServerConnection
 class Room:
     """
     A simple room containing 2 websocket clients, of type ServerConnection.
+    @constructor: room_id: str, a unique id for this room.
+    clients: Set[ServerConnection], a set of 2 clients in this room.
     """
     def __init__(self, room_id: str):
         self.room_id: str = room_id                  # room id e.x. "24251"
@@ -26,6 +28,7 @@ class Room:
     def broadcast(self, message: str, sender: ServerConnection = None) -> None:
         """
         send A message to all other clients in THIS room except self.
+        @param message: a str, parsed json format.
         """
 
         for client in list(self.clients):

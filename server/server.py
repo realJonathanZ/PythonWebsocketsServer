@@ -1,3 +1,5 @@
+from typing import Set
+
 import asyncio
 import websockets
 import json
@@ -6,7 +8,7 @@ from websockets.asyncio.server import ServerConnection
 # self-defined protocal.py
 from protocal import ChatData, ChatPacket
 
-connected_clients: set[ServerConnection] = set() # storing all active clients
+connected_clients: Set[ServerConnection] = set() # storing all active clients
 
 
 async def broadcast(sender: ServerConnection, message: str) -> None:
@@ -26,7 +28,7 @@ async def broadcast(sender: ServerConnection, message: str) -> None:
     '{"type": "chat", "data": {"sender": "A", "message": "Hello I'm A."}}'
     """
 
-    disconnected_clients: set[ServerConnection] = set() # store disconnected clients to remove them later
+    disconnected_clients: Set[ServerConnection] = set() # store disconnected clients to remove them later
 
     for client in list(connected_clients):
         # sender do not send message to itself..

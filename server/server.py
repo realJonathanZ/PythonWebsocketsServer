@@ -15,6 +15,7 @@ from room import Room
 # global states ===
 # =================
 rooms: dict[str, Room] = {} 
+client_to_room: dict[ServerConnection, Room] = {} # map each client to its room
 DEFAULT_ROOM: Final[str] = "default_room" # const str of room id
 
 # room handler ===
@@ -86,6 +87,9 @@ async def handler(websocket: ServerConnection) -> None:
     room: Room = get_or_create_room(DEFAULT_ROOM)
     room.add_client(websocket)
 
+    # register reverse mapping from client to room
+    client_to_room[websocket] = room
+
     print(f"this lobby contains clients count: -> {len(room.clients)}")
 
     try:
@@ -123,9 +127,11 @@ async def handler(websocket: ServerConnection) -> None:
 
     # when client disconnects...
     finally: # remove registered clent even if error occurs
-        # which room? all rooms TODO need to trace in which rooms are clients disconnected?
-        for r in rooms.values():
-            r.remove_client(websocket)
+        
+        room = client_to_room.pop(websocket, None) # find the room this client is in, and remove from the mapping dict.
+
+        if room is not None:
+            room.remove_client(websocket)
 
         print("A client disconnected from one or more rooms")
 

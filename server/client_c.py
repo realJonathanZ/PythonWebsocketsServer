@@ -14,18 +14,30 @@ from protocal import ChatPacket
 
 async def send_loop(ws: ClientConnection, name: str) -> None:
     """
-    read user input and send chat packets to the server forever.
+    read user input and send either chat or join_room packet to the server forever.
     """
     while True:
-        message = await asyncio.to_thread(input, "enter awesome message to all other clients: ")
-
-        packet: ChatPacket = {
-            "type": "chat",
-            "data": {
-                "sender": name,
-                "message": message
+        message = await asyncio.to_thread(input, 
+                                          "enter awesome message or \"/join <room_id>\": "
+                                          )
+        
+        if message.startswith("/join "):
+            this_room_id = message[6:].strip()
+            packet = {
+                "type": "join_room",
+                "data": {
+                    "room_id": this_room_id
+                }
             }
-        }
+
+        else:
+            packet: ChatPacket = {
+                "type": "chat",
+                "data": {
+                    "sender": name,
+                    "message": message
+                }
+            }
 
         await ws.send(json.dumps(packet))  # send parsed message to the server
 

@@ -25,21 +25,29 @@ class Room:
         print(f"[ROOM {self.room_id}] one client left from room \
               . remaining total={len(self.clients)}")
         
-    def broadcast(self, message: str, sender: ServerConnection = None) -> None:
+    async def broadcast(self, message: str, sender: ServerConnection = None) -> None:
         """
         send A message to all other clients in THIS room except self.
         @param message: a str, parsed json format.
         """
 
-        for client in list(self.clients):
-            if sender and client == sender:
+        disconnected_client_connections: Set[ServerConnection] = set()  # to store clients that failed to send message
+
+        for client_connection in list(self.clients):
+            if sender and client_connection == sender:
                 continue
             
             # othewise, iterated on client that's not self
             try:
-                # TODO: need change
-                asyncio.create_task(client.send(message))
+                await client_connection.send(message) # here client_connection represents the server's end from
+                # the ServerConnection between server and client.
+                # meaning send message through the particular connection from server end to client end.
 
             except Exception as e:
                 print(f"Error: [ROOM {self.room_id}] message-sending failed, Error: {e}")
-                self.clients.discard(client)  # remove from this room
+            
+                disconnected_client_connections.add(client_connection)
+
+        for client_connection in disconnected_client_connections:
+            self.clients.discard(client_connection)  # remove disconnected clients from the room
+            

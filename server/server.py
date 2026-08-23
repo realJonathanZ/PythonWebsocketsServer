@@ -6,7 +6,10 @@ import json
 from websockets.asyncio.server import ServerConnection
 
 # self-defined protocal.py
-from protocal import ChatData, ChatPacket
+from protocal import (
+    ChatPacket, ChatData,
+    JoinRoomPacket, JoinRoomData,
+)
 
 # room contains 2 (or more?) clients of type ServerConnection, and can broadcast within the room
 from room import Room
@@ -19,7 +22,7 @@ rooms: dict[str, Room] = {}
 client_to_room: dict[ServerConnection, Room] = {} # map each client to its room
 DEFAULT_ROOM: Final[str] = "default_room" # const str of room id
 
-# room handler ===
+# Room related helper funcs ===
 # =================
 
 
@@ -37,41 +40,46 @@ def get_or_create_room(room_id: str) -> Room:
 
     return a_room
 
-## NOTE: no longer allow clients broadcast/send packet via main server
-# async def broadcast(sender: ServerConnection, message: str) -> None:
-#     """
-#     let the sender send one message and broadcast it out except to the sender itself.
-#     @param message: a str, parsed json format.
-#     # example about a message:
-#     Suppose original unparsed json to be:
-#     {
-#         "type": "chat",
-#         "data": {
-#             "sender": "A",
-#             "message": "Hello I'm A."
-#         }
-#     }
-#     argument message will be a string like this:
-#     '{"type": "chat", "data": {"sender": "A", "message": "Hello I'm A."}}'
-#     """
 
-#     disconnected_clients: Set[ServerConnection] = set() # store disconnected clients to remove them later
+def get_current_room(client: ServerConnection) -> Room | None:
+    """
+    get the Room that this client is currently in, or None if not in any room. 
+    (note: maximum one room for this client to stay)
+    """
+    return client_to_room.get(client, None)
 
-#     for client in list(connected_clients):
-#         # sender do not send message to itself..
-#         if client != sender:
-#             # send the parsed json str message out
-#             try:
-#                 await client.send(message)
+def move_client_to_room(client: ServerConnection, room_id: str) -> Room:
+    """
+    move the given client to the room with the given room_id.
+    return the Room instance that the client is moved to.
+    (Note: a client can only stay in zero or one room)
+    ("move" means deletion from previous room and addition to the new room, given that the client is already in a room)
+    """
+    old_room: Room | None = get_current_room(client)
+    if old_room is not None:
+        old_room.remove_client(client)
 
-#             except Exception as e:
-#                 print(f"WARNING: message send failed: {e}")
-#                 # register this websocket connection as disconnected to the set.
-#                 disconnected_clients.add(client)
+    # for a newly born client, can still get in new room
+    new_room: Room = get_or_create_room(room_id)
+    new_room.add_client(client)
 
-#     # clean up dead connections..
-#     for client in disconnected_clients:
-#         connected_clients.discard(client) # discard(): more-safe remove()
+    client_to_room[client] = new_room # update reverse mapping from client to room
+
+    return new_room
+
+
+def remove_client(client:ServerConnection) -> None:
+    """
+    remove the given client from its current room, if it is in any room.
+    """
+    room: Room | None = client_to_room.pop(client, None)
+
+    if room is not None:
+        room.remove_client(client)
+    
+
+# async connection handler ===
+# =================
 
 
 
@@ -85,19 +93,27 @@ async def handler(websocket: ServerConnection) -> None:
     print("A client just connected")
 
     # assign to default room:
-    room: Room = get_or_create_room(DEFAULT_ROOM)
-    room.add_client(websocket)
+    move_client_to_room(websocket, DEFAULT_ROOM)
 
-    # register reverse mapping from client to room
-    client_to_room[websocket] = room
+    # get the room instance
+    current_room: Room | None = get_current_room(websocket)
 
-    print(f"this lobby contains clients count: -> {len(room.clients)}")
+    if current_room is None:
+        print("Error: something wrong in server handler")
+        await websocket.send(json.dumps({
+            "type": "error",
+            "data": {"message": "server internal error: room not found, in, server handler"}
+        }))
+        await websocket.close(code = 1011, reason="server internal error: room not found")
+        raise RuntimeError("server internal error: room not found, in, server handler")
+
+    print(f"this lobby contains clients count: -> {len(current_room.clients)}")
 
     try:
         # this loop ends only when the WebSocket connection closes or an error happens. (for a particular ServerConncetion)
         async for message in websocket: # listen for messages from this client
             raw_message = message
-            # parse json and print its contents (Only for logging and debugging purpose)
+            #
             try:
                 packet: dict = json.loads(raw_message)  # Note: debugged point: check difference with .load() and .loads()
 
@@ -110,13 +126,23 @@ async def handler(websocket: ServerConnection) -> None:
                     chat_message: str = data["message"]
 
                     print(f"[RECEIVED][CHAT][{sender}]{chat_message}")
+                    current_room: Room = get_current_room(websocket)
+                    if current_room is not None:
+                        await current_room.broadcast(raw_message, sender=websocket)
+                elif packet.get("type") == "join_room":
+                    join_packet: JoinRoomPacket = packet
+                    join_data: JoinRoomData = join_packet["data"]
+                    target_room: str = join_data["room_id"]
+
+                    move_client_to_room(websocket, target_room)
+
+                    print(
+                       f"[ROOM SWITCH DONE] client moved to room '{target_room}'"
+                    )
 
 
             except json.JSONDecodeError:
                 print("main server received invalid json (or problem when loading):", raw_message)
-
-            # broadcast, but only within the room.
-            room.broadcast(raw_message, sender=websocket)
 
 
     except websockets.ConnectionClosed:
@@ -129,11 +155,7 @@ async def handler(websocket: ServerConnection) -> None:
     # when client disconnects...
     finally: # remove registered clent even if error occurs
         
-        room = client_to_room.pop(websocket, None) # find the room this client is in, and remove from the mapping dict.
-
-        if room is not None:
-            room.remove_client(websocket)
-
+        remove_client(websocket) # remove the client from its current room, if it is in any room
         print("A client disconnected from one or more rooms")
 
         

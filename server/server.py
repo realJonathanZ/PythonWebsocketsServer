@@ -15,6 +15,7 @@ from room import Room
 # global states ===
 # =================
 rooms: dict[str, Room] = {} 
+# NOTE: might only let one client to be in one "Room" for now..
 client_to_room: dict[ServerConnection, Room] = {} # map each client to its room
 DEFAULT_ROOM: Final[str] = "default_room" # const str of room id
 

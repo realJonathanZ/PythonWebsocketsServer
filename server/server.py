@@ -1,4 +1,4 @@
-from typing import Set, Final
+from typing import  Final
 
 import asyncio
 import websockets
@@ -11,8 +11,11 @@ from protocal import (
     JoinRoomPacket, JoinRoomData,
 )
 
-# room contains 2 (or more?) clients of type ServerConnection, and can broadcast within the room
+# room contains 0, 1, 2 (or more?) clients of type ServerConnection, and can broadcast within the room
 from room import Room
+
+# Validation functions before incoming packet(s) being indexed in.
+from json_validation import parse_chat_packet, parse_join_room_packet
 
 
 # global states ===
@@ -115,35 +118,71 @@ async def handler(websocket: ServerConnection) -> None:
             raw_message = message
             #
             try:
-                packet: dict = json.loads(raw_message)  # Note: debugged point: check difference with .load() and .loads()
-
-                # where TypedDict is invovlved, as example..
-                if packet.get("type") == "chat":
-                    chat_packet: ChatPacket = packet  # from dict to TypedDict
-
-                    data: ChatData = chat_packet["data"]
-                    sender: str = data["sender"]
-                    chat_message: str = data["message"]
-
-                    print(f"[RECEIVED][CHAT][{sender}]{chat_message}")
-                    current_room: Room = get_current_room(websocket)
-                    if current_room is not None:
-                        await current_room.broadcast(raw_message, sender=websocket)
-                elif packet.get("type") == "join_room":
-                    join_packet: JoinRoomPacket = packet
-                    join_data: JoinRoomData = join_packet["data"]
-                    target_room: str = join_data["room_id"]
-
-                    move_client_to_room(websocket, target_room)
-
-                    print(
-                       f"[ROOM SWITCH DONE] client moved to room '{target_room}'"
-                    )
-
+                packet: dict = json.loads(raw_message)  
 
             except json.JSONDecodeError:
-                print("main server received invalid json (or problem when loading):", raw_message)
+                print("main server received something that cannot be parsed to json format", raw_message)
+                # ignore the malformed message and keep listening to next possible message from this client.
+                continue
 
+            # determine packet type
+            packet_type: str | None = packet.get("type")
+
+            # ===
+            # CHAT
+            # ===
+            if packet_type == "chat":
+                # validate
+                chat_packet: ChatPacket | None = parse_chat_packet(packet)
+
+                if chat_packet is None:
+                    print("[INVALID][CHAT] malformed chat packet:",
+                          packet
+                    )
+                    continue # ignore and still listen
+
+
+                # now, the data with/around packet has passed validation
+                data: ChatData = chat_packet["data"]
+                sender: str = data["sender"]
+                chat_message: str = data["message"]
+                print(f"[RECEIVED][CHAT][{sender}]{chat_message}")
+
+                #find current room
+                current_room = get_current_room(websocket)
+
+                if current_room is not None:
+                    # Broadcast only inside that room.
+                    await current_room.broadcast(raw_message, sender=websocket)
+
+            # ===
+            # JOIN ROOM
+            # ===
+
+            elif packet_type == "join_room":
+                # validate
+                join_packet: JoinRoomPacket | None = parse_join_room_packet(packet)
+
+                if join_packet is None:
+                    print("[INVALID][JOIN_ROOM] malformed join_room packet:",
+                          packet
+                    )
+                    continue # ignore and still listen
+
+                # validation passed
+                join_data: JoinRoomData = join_packet["data"]
+                target_room: str = join_data["room_id"]
+
+                # move client to this target room
+                move_client_to_room(websocket, target_room)
+
+                print(f"[ROOM SWITCH DONE] client moved to room '{target_room}'")
+
+            # ===
+            # UNKNOWN PACKET TYPE
+            # ===
+            else:
+                print(f"[UNKNOWN PACKET TYPE] TYPE TO BE:", packet_type, " | RAW PACKET:", packet)
 
     except websockets.ConnectionClosed:
         # normal disconnect (no error) # happens when ctrl-c or crash
@@ -158,7 +197,11 @@ async def handler(websocket: ServerConnection) -> None:
         remove_client(websocket) # remove the client from its current room, if it is in any room
         print("A client disconnected from one or more rooms")
 
-        
+
+
+# ===
+# MAIN AND SERVER ENTRY
+# ===     
         
 
 

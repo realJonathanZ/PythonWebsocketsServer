@@ -5,6 +5,10 @@ import websockets
 import json
 from websockets.asyncio.server import ServerConnection
 
+# for curiosity for the time between 2 polls in godot _process() where it polls for every process frame..
+import time
+
+
 # self-defined protocal.py
 from protocal import (
     ChatPacket, ChatData,
@@ -146,7 +150,7 @@ async def handler(websocket: ServerConnection) -> None:
                 data: ChatData = chat_packet["data"]
                 sender: str = data["sender"]
                 chat_message: str = data["message"]
-                print(f"[RECEIVED][CHAT][{sender}]{chat_message}")
+                print(f"[{time.perf_counter():.6f}][RECEIVED][CHAT][{sender}]{chat_message}")
 
                 #find current room
                 current_room = get_current_room(websocket)

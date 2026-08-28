@@ -1,5 +1,5 @@
 ## This is a logic container not involving networking yet.
-## 1 room will hold 2 players(for now!)
+## 1 room will hold x players (0<=x<=any)
 
 import asyncio
 from typing import Set
@@ -13,7 +13,7 @@ class Room:
     """
     def __init__(self, room_id: str):
         self.room_id: str = room_id                  # room id e.x. "24251"
-        self.clients: Set[ServerConnection] = set()  # containing 2 connections, passed from main server.
+        self.clients: Set[ServerConnection] = set()  # containing several connections, passed from main server.
 
     def add_client(self, client: ServerConnection) -> None:
         self.clients.add(client)
@@ -25,7 +25,7 @@ class Room:
         print(f"[ROOM {self.room_id}] one client left from room \
               . remaining total={len(self.clients)}")
         
-    async def broadcast(self, message: str, sender: ServerConnection = None) -> None:
+    async def broadcast(self, message: str, sender: ServerConnection | None = None) -> None:
         """
         send A message to all other clients in THIS room except self.
         @param message: a str, parsed json format.

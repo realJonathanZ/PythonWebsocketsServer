@@ -32,12 +32,14 @@ class ChatPacket(TypedDict):
 #{
 #   "type": "join_room", 
 #   "data": {
-#       "room_id": "24123"
+#       "room_id": "24123",
+#       "client_name": "B"
 #   }
 #}
 
 class JoinRoomData(TypedDict):
     room_id: str
+    client_name: str
 
 class JoinRoomPacket(TypedDict):
     type: Literal["join_room"]

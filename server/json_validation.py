@@ -41,7 +41,12 @@ def parse_join_room_packet(packet: Any) -> JoinRoomPacket | None:
     if not isinstance(room_id,str): # same, "Literal" when static type description, str when runtime..
         return None
 
-    #5 TODO any modification to protocal should be reflected here, for adding more rules
+    #5 "client_name" must exists and must be a string
+    client_name = data.get("client_name")
+    if not isinstance(client_name, str):
+        return None
+
+    #* TODO any modification to protocal should be reflected here, for adding more rules
     
     #6 checked fine packet, return
     return packet

@@ -26,7 +26,8 @@ async def send_loop(ws: ClientConnection, name: str) -> None:
             packet = {
                 "type": "join_room",
                 "data": {
-                    "room_id": this_room_id
+                    "room_id": this_room_id,
+                    "client_name": name
                 }
             }
 

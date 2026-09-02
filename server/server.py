@@ -13,6 +13,7 @@ import time
 from protocal import (
     ChatPacket, ChatData,
     JoinRoomPacket, JoinRoomData,
+    RoomJoinedPacket, RoomJoinedData,
 )
 
 # room contains 0, 1, 2 (or more?) clients of type ServerConnection, and can broadcast within the room
@@ -182,6 +183,16 @@ async def handler(websocket: ServerConnection) -> None:
                 move_client_to_room(websocket, target_room)
 
                 print(f"[ROOM SWITCH DONE] client '{client_name}' moved to room '{target_room}'")
+
+                # notify the client that it has successfully joined the room
+                room_joined_packet: RoomJoinedPacket = {
+                    "type": "room_joined",
+                    "data": {
+                        "room_id": target_room,
+                        "client_name": client_name
+                    }
+                }
+                await websocket.send(json.dumps(room_joined_packet))
 
             # ===
             # UNKNOWN PACKET TYPE

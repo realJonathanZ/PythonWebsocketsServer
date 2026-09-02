@@ -45,6 +45,25 @@ class JoinRoomPacket(TypedDict):
     type: Literal["join_room"]
     data: JoinRoomData
 
+# ==== room_joined protocal related section ====
+
+# an example:
+#{
+#   "type": "room_joined", 
+#   "data": {
+#       "room_id": "24123",
+#       "client_name": "B"
+#   }
+#}
+
+
+class RoomJoinedData(TypedDict):
+    room_id: str
+    client_name: str
+
+class RoomJoinedPacket(TypedDict):
+    type: Literal["room_joined"]
+    data: RoomJoinedData
 
 
 # ==== PutXO protocal related section ? ====

@@ -50,15 +50,31 @@ async def receive_loop(ws: ClientConnection) -> None:
     """
     # keep waiting for messages until the connection closes
     async for message in ws:
-        data: ChatPacket = json.loads(message)
+        packet: ChatPacket = json.loads(message)
 
-        print("\n--- some message is received by client A ! ---")
-        print("message type:", data["type"])
-        print("message sender:", data["data"]["sender"])
-        print("message content:", data["data"]["message"])
-        print("---------------------------------------\n")
+        packet_type: str | None = packet.get("type")
 
+        if packet_type == "chat":
+            print("\n--- some message is received by client A ! ---")
+            print("message type:", packet["type"])
+            print("message sender:", packet["data"]["sender"])
+            print("message content:", packet["data"]["message"])
+            print("---------------------------------------\n")
+            
+        elif packet_type == "room_joined":
+            print("\n--- client A successfully joined a room ! ---")
+            print("message type:", packet["type"])
+            print("room id:", packet["data"]["room_id"])
+            print("client name:", packet["data"]["client_name"])
+            print("---------------------------------------\n")
 
+        else:
+            print("\n--- client A received an unknown packet type ! ---")
+            print("message type:", packet_type)
+            print("raw packet:", packet)
+            print("---------------------------------------\n")
+
+        
 
 
 

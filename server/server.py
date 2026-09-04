@@ -177,19 +177,22 @@ async def handler(websocket: ServerConnection) -> None:
                 # validation passed
                 join_data: JoinRoomData = join_packet["data"]
                 target_room: str = join_data["room_id"]
-                client_name: str = join_data["client_name"]
+                player_id: str = join_data["player_id"]
+                display_name: str = join_data["display_name"]
 
                 # move client to this target room
                 move_client_to_room(websocket, target_room)
 
-                print(f"[ROOM SWITCH DONE] client '{client_name}' moved to room '{target_room}'")
+                print(f"[ROOM SWITCH DONE] client [name '{display_name}' "
+                      f"with id '{player_id}'] moved to room '{target_room}'")
 
                 # notify the client that it has successfully joined the room
                 room_joined_packet: RoomJoinedPacket = {
                     "type": "room_joined",
                     "data": {
                         "room_id": target_room,
-                        "client_name": client_name
+                        "player_id": player_id,
+                        "display_name": display_name
                     }
                 }
                 await websocket.send(json.dumps(room_joined_packet))

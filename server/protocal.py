@@ -33,13 +33,15 @@ class ChatPacket(TypedDict):
 #   "type": "join_room", 
 #   "data": {
 #       "room_id": "24123",
-#       "client_name": "B"
+#       "player_id": "18887776655",
+#       "display_name": "B's Display Name"
 #   }
 #}
 
 class JoinRoomData(TypedDict):
     room_id: str
-    client_name: str
+    player_id: str
+    display_name: str
 
 class JoinRoomPacket(TypedDict):
     type: Literal["join_room"]
@@ -52,14 +54,16 @@ class JoinRoomPacket(TypedDict):
 #   "type": "room_joined", 
 #   "data": {
 #       "room_id": "24123",
-#       "client_name": "B"
+#       "player_id": "18887776655",
+#       "display_name": "B's Display Name"
 #   }
 #}
 
 
 class RoomJoinedData(TypedDict):
     room_id: str
-    client_name: str
+    player_id: str
+    display_name: str
 
 class RoomJoinedPacket(TypedDict):
     type: Literal["room_joined"]

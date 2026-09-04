@@ -42,8 +42,13 @@ def parse_join_room_packet(packet: Any) -> JoinRoomPacket | None:
         return None
 
     #5 "client_name" must exists and must be a string
-    client_name = data.get("client_name")
-    if not isinstance(client_name, str):
+    player_id = data.get("player_id")
+    if not isinstance(player_id, str):
+        return None
+
+    #6 "display_name" must exists and must be a string
+    display_name = data.get("display_name")
+    if not isinstance(display_name, str):
         return None
 
     #* TODO any modification to protocal should be reflected here, for adding more rules
